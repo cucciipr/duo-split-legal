@@ -4,7 +4,7 @@ DuoSplit is a shared record of the money two people share: who covered what, how
 
 **Need help?** Email duosplit.app@gmail.com. We usually reply within a few days.
 
-When you write, it helps to include your device (iPhone 15, Pixel 8…), the app version from **Settings → About DuoSplit**, and what you expected to happen.
+When you write, it helps to include your device (iPhone 15, Pixel 8…), the app version shown at the bottom of **Settings**, and what you expected to happen.
 
 ---
 
@@ -14,7 +14,7 @@ When you write, it helps to include your device (iPhone 15, Pixel 8…), the app
 Create your space, then send the invite from **Invite partner**. Your partner installs DuoSplit, signs in, and enters the code. Before they join, they will see the split arrangement you have proposed and can either agree to it or adjust it with you.
 
 **Why does my partner get to change the split?**
-Because it is a shared agreement, not a setting one person owns. Either of you can change it at any time, and the other person is notified. Neither of you needs the other's approval.
+Because it is a shared agreement, not a setting one person owns. Either of you can change it at any time, and the other person sees the change in your shared activity. Neither of you needs the other's approval.
 
 ## How splitting works
 
@@ -51,8 +51,13 @@ No. DuoSplit has no access to any account, card, or payment service, and cannot 
 **What happens if we disconnect?**
 The shared space becomes permanently read-only for both of you. Nothing is deleted, and neither person can delete it. You will both still be able to look back at your history.
 
+**We disconnected while one of us still owed the other. What now?**
+Settle it between yourselves the way you normally would. An archived space records what the balance was when the space closed, and that record stays as it is — nothing further can be added to it, including a settlement. The number you see there is a fact about the past, not an open bill.
+
 **How do I delete my account?**
-**Settings → Danger zone → Delete account.** You will be asked to sign in again, because deletion cannot be undone.
+Open **Settings**, scroll to the bottom, and choose to end your space or delete your account. You will be asked to sign in again, because deletion cannot be undone.
+
+If you no longer have the app installed, you can request deletion by email instead — see our [account deletion page](/delete-account).
 
 **If I delete my account, does my partner lose our history?**
 No, and this is deliberate. Your name, email, and profile picture are permanently removed, but the shared record stays with your partner with your identity replaced by "Former partner". Deleting it entirely would erase their financial history without their consent.
