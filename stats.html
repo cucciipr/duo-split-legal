@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DuoSplit — số liệu</title>
+<meta name="description" content="Trang nội bộ đọc GET /v1/internal/stats: chỉ số đếm và mốc thời gian, không dữ liệu cá nhân.">
+<!--
+  Trang tĩnh, không phụ thuộc gì bên ngoài. Secret KHÔNG nằm trong file này:
+  bạn nhập một lần, trang giữ trong localStorage của trình duyệt này và gửi
+  kèm header Authorization: Bearer. Ai xem source cũng không thấy gì.
+
+  Origin của trang phải đúng bằng STATS_CORS_ORIGIN trên Render
+  (https://<owner>.github.io) — khác một ký tự là trình duyệt chặn (lỗi
+  hiện là "network error", không phải 403, vì server cố ý không trả header
+  CORS cho origin lạ).
+-->
+<style>
+  :root{
+    --bg:#FFFCF7; --card:#FFFFFF; --border:#F1DCD1; --ink:#321C2A; --body:#675867;
+    --muted:#9A8B92; --coral:#E85A4F; --coral-soft:#FFEFE6; --ok:#667A3F; --ok-soft:#E3EACF;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#1B1519; --card:#241C21; --border:#3A2E35; --ink:#F4ECEF; --body:#C9BBC2;
+    --muted:#8E7F87; --coral:#F36B5B; --coral-soft:#3A2622; --ok:#A8B78D; --ok-soft:#2A3222; } }
+  :root[data-theme="dark"]{
+    --bg:#1B1519; --card:#241C21; --border:#3A2E35; --ink:#F4ECEF; --body:#C9BBC2;
+    --muted:#8E7F87; --coral:#F36B5B; --coral-soft:#3A2622; --ok:#A8B78D; --ok-soft:#2A3222; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+  main{max-width:880px;margin:0 auto;padding:24px 16px 48px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--body);margin:0 0 20px;font-size:14px}
+  form{display:grid;gap:10px;grid-template-columns:1fr;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:20px}
+  @media(min-width:640px){form{grid-template-columns:1fr 1fr auto}}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink)}
+  button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:10px;background:var(--coral);color:#fff;cursor:pointer;align-self:end}
+  button:disabled{opacity:.6;cursor:wait}
+  .row{grid-column:1/-1;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--body)}
+  .msg{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none}
+  .msg.err{display:block;background:var(--coral-soft);color:var(--ink);border:1px solid var(--border)}
+  .msg.ok{display:block;background:var(--ok-soft);color:var(--ink)}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .card .k{font-size:12px;color:var(--muted)}
+  .card .v{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .card.hero{grid-column:1/-1;border-color:var(--coral)}
+  .card.hero .v{font-size:40px;color:var(--coral)}
+  .card.hero .k{color:var(--ink);font-weight:600;font-size:13px}
+  .card.hero .note{font-size:13px;color:var(--body);margin-top:6px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 10px}
+  .foot{margin-top:24px;font-size:12px;color:var(--muted)}
+  code{font-size:12px;background:var(--coral-soft);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<main>
+  <h1>DuoSplit — số liệu</h1>
+  <p class="sub">Chỉ số đếm và mốc thời gian từ <code>GET /v1/internal/stats</code>. Không tên, không email, không id.</p>
+
+  <form id="f" autocomplete="off">
+    <div>
+      <label for="base">API</label>
+      <input id="base" type="url" placeholder="https://duo-split-backend.onrender.com">
+    </div>
+    <div>
+      <label for="secret">STATS_API_SECRET</label>
+      <input id="secret" type="password" placeholder="dán secret, không lưu vào file này" autocomplete="off">
+    </div>
+    <button id="go" type="submit">Đọc</button>
+    <div class="row">
+      <label style="margin:0;display:flex;gap:6px;align-items:center;color:var(--body);font-size:13px">
+        <input id="remember" type="checkbox" style="width:auto"> nhớ secret trên máy này
+      </label>
+      <label style="margin:0;display:flex;gap:6px;align-items:center;color:var(--body);font-size:13px">
+        <input id="auto" type="checkbox" style="width:auto"> tự làm mới mỗi 60 giây
+      </label>
+      <a href="#" id="forget" style="color:var(--muted)">quên secret</a>
+    </div>
+  </form>
+
+  <div id="msg" class="msg"></div>
+  <div id="out"></div>
+  <p class="foot" id="foot"></p>
+</main>
+
+<script>
+(function(){
+  var DEFAULT_BASE = "https://duo-split-backend.onrender.com";
+  var $ = function(id){ return document.getElementById(id); };
+  var store = {
+    get: function(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set: function(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+    del: function(k){ try { localStorage.removeItem(k); } catch(e){} }
+  };
+
+  $("base").value = store.get("stats.base") || DEFAULT_BASE;
+  if (store.get("stats.secret")) { $("secret").value = store.get("stats.secret"); $("remember").checked = true; }
+  $("auto").checked = store.get("stats.auto") === "1";
+
+  var timer = null;
+  function schedule(){
+    if (timer) { clearInterval(timer); timer = null; }
+    if ($("auto").checked) timer = setInterval(load, 60000);
+  }
+  $("auto").addEventListener("change", function(){ store.set("stats.auto", $("auto").checked ? "1" : "0"); schedule(); });
+  $("forget").addEventListener("click", function(e){ e.preventDefault(); store.del("stats.secret"); $("secret").value=""; $("remember").checked=false; say("Đã quên secret trên máy này.", "ok"); });
+  $("f").addEventListener("submit", function(e){ e.preventDefault(); load(); });
+
+  function say(text, kind){ var m=$("msg"); m.className = "msg " + (kind||""); m.textContent = text; }
+  function fmtInt(n){ return (typeof n === "number") ? n.toLocaleString("vi-VN") : "—"; }
+  function fmtTime(iso){
+    if (!iso) return "chưa có";
+    var d = new Date(iso); if (isNaN(d)) return iso;
+    var diff = Math.round((Date.now() - d.getTime())/60000);
+    var rel = diff < 1 ? "vừa xong" : diff < 60 ? diff + " phút trước" : diff < 1440 ? Math.round(diff/60) + " giờ trước" : Math.round(diff/1440) + " ngày trước";
+    return d.toLocaleString("vi-VN") + " · " + rel;
+  }
+  function card(k, v, hero, note){
+    return '<div class="card' + (hero ? ' hero' : '') + '"><div class="k">' + k + '</div><div class="v">' + fmtInt(v) + '</div>' + (note ? '<div class="note">' + note + '</div>' : '') + '</div>';
+  }
+  function section(title, cards){ return '<h2>' + title + '</h2><div class="grid">' + cards.join("") + '</div>'; }
+
+  function render(d){
+    var u=d.users||{}, s=d.spaces||{}, e=d.engagement||{}, a=d.activity_7d||{}, c=d.checkins||{}, r=d.recurring||{};
+    var html = "";
+    html += section("Chỉ số dẫn dắt", [
+      card("Space mà CẢ HAI đều tự ghi khoản chi", e.spaces_both_wrote, true,
+           "Người thứ hai có tự làm gì không — Vision §12. " + fmtInt(e.spaces_one_wrote) + " space mới chỉ một người ghi.")
+    ]);
+    html += section("Người dùng", [card("tổng", u.total), card("7 ngày", u.created_7d), card("hôm nay (UTC)", u.created_today)]);
+    html += section("Space", [card("tổng", s.total), card("đã ghép đôi", s.paired), card("đang chờ", s.pending), card("đã đóng", s.archived)]);
+    html += section("Hoạt động 7 ngày", [card("khoản chi", a.expenses), card("thanh toán", a.settlements)]);
+    html += section("Check-in", [card("đã tạo", c.created), card("hoàn tất", c.completed), card("vẫn ổn", c.outcome_still_works), card("nên xem lại", c.outcome_review)]);
+    html += section("Định kỳ", [card("rule đang chạy", r.rules_active), card("cần xử lý", r.rules_needs_attention), card("khoản tự tạo", r.expenses_auto_created)]);
+    $("out").innerHTML = html;
+    $("foot").textContent = "Hoạt động gần nhất: " + fmtTime(d.last_activity_at) + " · Đọc lúc: " + fmtTime(d.generated_at);
+  }
+
+  function load(){
+    var base = ($("base").value || DEFAULT_BASE).replace(/\/+$/, "");
+    var secret = $("secret").value.trim();
+    if (!secret) { say("Nhập STATS_API_SECRET trước đã.", "err"); return; }
+    store.set("stats.base", base);
+    if ($("remember").checked) store.set("stats.secret", secret); else store.del("stats.secret");
+    $("go").disabled = true; say("Đang đọc… (instance Render đang ngủ có thể mất 30–50 giây)", "ok");
+
+    var ctl = new AbortController(); var t = setTimeout(function(){ ctl.abort(); }, 70000);
+    fetch(base + "/v1/internal/stats", { headers: { "Authorization": "Bearer " + secret }, signal: ctl.signal, cache: "no-store" })
+      .then(function(res){
+        clearTimeout(t);
+        if (res.status === 401) throw new Error("401 — secret sai (hoặc thừa/thiếu ký tự). Đối chiếu với STATS_API_SECRET trên Render.");
+        if (res.status === 404) throw new Error("404 — route chưa mở: STATS_API_SECRET chưa được set trên Render, hoặc service không boot được (kiểm STATS_CORS_ORIGIN có đúng dạng https://host không).");
+        if (res.status === 403) throw new Error("403 — origin của trang này không khớp STATS_CORS_ORIGIN.");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(j){ render(j.data || j); say("", ""); })
+      .catch(function(err){
+        clearTimeout(t);
+        var m = err && err.name === "AbortError"
+          ? "Quá 70 giây không phản hồi — Render đang thức dậy, thử lại sau nửa phút."
+          : (err && /Failed to fetch|NetworkError|Load failed/.test(String(err.message))
+             ? "Trình duyệt chặn (CORS) hoặc không kết nối được. Origin trang đang mở là " + location.origin + " — phải đúng bằng STATS_CORS_ORIGIN trên Render. Mở file bằng file:// thì không bao giờ qua được; phải qua GitHub Pages hoặc một server https."
+             : String(err.message || err));
+        say(m, "err");
+      })
+      .then(function(){ $("go").disabled = false; schedule(); });
+  }
+
+  if ($("secret").value) load(); else schedule();
+})();
+</script>
+</body>
+</html>
