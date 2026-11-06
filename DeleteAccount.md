@@ -6,7 +6,7 @@ permalink: /delete-account/
 
 # Delete your DuoSplit account
 
-**Last updated: 2 September 2026**
+**Last updated: 2 October 2026**
 
 This page explains how to delete your DuoSplit account and what happens to your
 data when you do. You can start the process from inside the app, or by emailing
@@ -63,7 +63,12 @@ When your account is deleted, the following is permanently removed:
 - the identifier linking your account to Google or Apple;
 - all sign-in sessions and refresh tokens, which signs you out everywhere;
 - your push notification token, if you had notifications enabled;
-- any subscription record held for your account.
+- any subscription record held for your account;
+- how you get paid, if you added it — your PayPal.Me name, your Venmo
+  username, and the bank and account number you added for VietQR — and any
+  note that you or your partner sent a reminder to add one;
+- your private record ("Just me"), if you kept one: every expense, category
+  and repeating expense in it.
 
 If you signed in with Apple, we also ask Apple to revoke the sign-in token that
 connected your Apple ID to DuoSplit, so the connection is broken on their side
@@ -100,9 +105,12 @@ The app tells you which of these applies to you before you confirm.
 ## What we never had
 
 DuoSplit does not connect to your bank, and it never holds or moves money. It is
-a record of what two people agreed and what each of them paid — nothing more. So
-there are no payment credentials or bank details to delete, because we never had
-them.
+a record of what two people agreed and what each of them paid — nothing more.
+
+If you added how you get paid — a PayPal.Me name, a Venmo username, or a bank account for VietQR —
+that is deleted with your account, as listed above. We never had a password,
+card number, or login for any bank or payment service, so there is nothing of
+that kind to delete.
 
 ---
 

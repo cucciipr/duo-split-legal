@@ -1,6 +1,6 @@
 # DuoSplit Terms of Service
 
-**Last updated:** 12 August 2026
+**Last updated:** 2 October 2026
 
 By creating an account or using the app, you accept them.
 
@@ -16,12 +16,14 @@ You must be at least 18 years old. You must be able to enter into a binding agre
 
 This is the most important thing in this document.
 
-**DuoSplit does not move money.** It is a shared notebook, not a payment service. Specifically, DuoSplit:
+**DuoSplit does not move money.** It is a shared notebook, with an optional private page for your own spending; it is not a payment service. Specifically, DuoSplit:
 
 - is not a bank, payment processor, money transmitter, escrow service, or lender
 - does not hold, transfer, or have access to any of your funds
 - does not connect to your bank accounts, cards, or payment services
 - does not verify that anyone actually paid anyone
+
+**Paying through another app.** DuoSplit can open PayPal or Venmo, or show a VietQR code, with your partner's details and an amount filled in, to save you typing. It can also open the banking app you choose, after copying your partner's account number for you to paste. The payment happens in PayPal, in Venmo or in your bank, under their terms, not ours. DuoSplit does not see whether it went through, cannot reverse it, and cannot recover money sent to the wrong person — check who you are paying before you confirm. A settlement is recorded in DuoSplit only when you tell the app you have paid.
 
 The balances DuoSplit shows are **a record of what the two of you have told the app**. They are not invoices, not statements of account, and not legally enforceable debts created by us. What you owe each other, and whether you settle it, is entirely between the two of you.
 
@@ -63,6 +65,8 @@ When you and another person share a space, the record inside it belongs to both 
 - **If you delete your account, the shared record stays with your partner** with your identity removed. See the Privacy Policy for detail.
 
 These rules exist so that one person cannot delete the other person's financial history. We think that protection matters more than the ability to erase your tracks, and we are telling you plainly so you can decide before you invite anyone.
+
+**Your private record is different.** What you record only for yourself ("Just me") is not part of any shared space. Nobody can be invited into it, the other person never sees it, and it is deleted with your account.
 
 ## 6. Acceptable use
 

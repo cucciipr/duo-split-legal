@@ -4,47 +4,64 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DuoSplit — số liệu</title>
-<meta name="description" content="Trang nội bộ đọc GET /v1/internal/stats: chỉ số đếm và mốc thời gian, không dữ liệu cá nhân.">
+<meta name="description" content="Trang nội bộ đọc GET /v1/internal/stats và /v1/internal/stats/detail: số đếm, người dùng, space và chuỗi sự kiện.">
+<meta name="robots" content="noindex, nofollow">
 <!--
   Trang tĩnh, không phụ thuộc gì bên ngoài. Secret KHÔNG nằm trong file này:
   bạn nhập một lần, trang giữ trong localStorage của trình duyệt này và gửi
   kèm header Authorization: Bearer. Ai xem source cũng không thấy gì.
 
+  Hai endpoint, cùng một secret:
+    GET /v1/internal/stats          số đếm, không PII
+    GET /v1/internal/stats/detail   email, space, chuỗi sự kiện (CÓ PII)
+  Vì secret giờ mở được email và ghi chú khoản chi, đừng tick "nhớ secret"
+  trên máy dùng chung.
+
   Origin của trang phải đúng bằng STATS_CORS_ORIGIN trên Render
   (https://<owner>.github.io) — khác một ký tự là trình duyệt chặn (lỗi
   hiện là "network error", không phải 403, vì server cố ý không trả header
   CORS cho origin lạ).
+
+  Mọi chuỗi đến từ người dùng (email, tên, ghi chú, tên space) đều đi qua
+  esc() trước khi vào innerHTML — trang giữ secret, một ghi chú chứa <script>
+  không được phép chạy ở đây.
 -->
 <style>
   :root{
     --bg:#FFFCF7; --card:#FFFFFF; --border:#F1DCD1; --ink:#321C2A; --body:#675867;
-    --muted:#9A8B92; --coral:#E85A4F; --coral-soft:#FFEFE6; --ok:#667A3F; --ok-soft:#E3EACF;
+    --muted:#8A7B82; --coral:#E85A4F; --coral-soft:#FFEFE6; --ok:#667A3F; --ok-soft:#E3EACF;
+    --s1:#2a78d6; --s2:#eb6834; --grid:#F3E7E0; --axis:#E2CFC5; --hover:rgba(50,28,42,.06);
   }
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
     --bg:#1B1519; --card:#241C21; --border:#3A2E35; --ink:#F4ECEF; --body:#C9BBC2;
-    --muted:#8E7F87; --coral:#F36B5B; --coral-soft:#3A2622; --ok:#A8B78D; --ok-soft:#2A3222; } }
+    --muted:#9A8B93; --coral:#F36B5B; --coral-soft:#3A2622; --ok:#A8B78D; --ok-soft:#2A3222;
+    --s1:#3987e5; --s2:#d95926; --grid:#2F252B; --axis:#4A3C44; --hover:rgba(255,255,255,.06); } }
   :root[data-theme="dark"]{
     --bg:#1B1519; --card:#241C21; --border:#3A2E35; --ink:#F4ECEF; --body:#C9BBC2;
-    --muted:#8E7F87; --coral:#F36B5B; --coral-soft:#3A2622; --ok:#A8B78D; --ok-soft:#2A3222; }
+    --muted:#9A8B93; --coral:#F36B5B; --coral-soft:#3A2622; --ok:#A8B78D; --ok-soft:#2A3222;
+    --s1:#3987e5; --s2:#d95926; --grid:#2F252B; --axis:#4A3C44; --hover:rgba(255,255,255,.06); }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
-  main{max-width:880px;margin:0 auto;padding:24px 16px 48px}
+  main{max-width:1120px;margin:0 auto;padding:24px 16px 48px}
   h1{font-size:22px;margin:0 0 4px}
   .sub{color:var(--body);margin:0 0 20px;font-size:14px}
   form{display:grid;gap:10px;grid-template-columns:1fr;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:20px}
   @media(min-width:640px){form{grid-template-columns:1fr 1fr auto}}
   label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
-  input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink)}
+  input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink)}
+  select{width:auto;padding:8px 10px;font-size:14px}
   button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:10px;background:var(--coral);color:#fff;cursor:pointer;align-self:end}
   button:disabled{opacity:.6;cursor:wait}
   .row{grid-column:1/-1;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--body)}
+  .row label{margin:0;display:flex;gap:6px;align-items:center;color:var(--body);font-size:13px}
+  .row input[type=checkbox]{width:auto}
   .msg{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:14px;display:none}
   .msg.err{display:block;background:var(--coral-soft);color:var(--ink);border:1px solid var(--border)}
   .msg.ok{display:block;background:var(--ok-soft);color:var(--ink)}
   .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
   .card .k{font-size:12px;color:var(--muted)}
-  .card .v{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .card .v{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-top:2px}
   .card.hero{grid-column:1/-1;border-color:var(--coral)}
   .card.hero .v{font-size:40px;color:var(--coral)}
   .card.hero .k{color:var(--ink);font-weight:600;font-size:13px}
@@ -52,12 +69,80 @@
   h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 10px}
   .foot{margin-top:24px;font-size:12px;color:var(--muted)}
   code{font-size:12px;background:var(--coral-soft);padding:1px 5px;border-radius:5px}
+
+  /* tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:4px 0 16px;overflow-x:auto}
+  .tabs button{background:none;color:var(--body);font-weight:600;font-size:14px;border-radius:0;padding:10px 12px;border-bottom:2px solid transparent;white-space:nowrap;align-self:auto}
+  .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--coral)}
+  .tabs .n{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+  [hidden]{display:none !important}
+
+  /* toolbar */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar input[type=search]{flex:1 1 220px;width:auto;padding:8px 12px;font-size:14px}
+  .toolbar .count{font-size:13px;color:var(--muted);margin-left:auto}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:var(--coral-soft);color:var(--ink);border-radius:999px;padding:4px 6px 4px 10px}
+  .chip button{background:none;color:var(--body);padding:0 6px;font-size:15px;line-height:1;align-self:auto}
+
+  /* tables */
+  .tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:14px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--grid);vertical-align:top;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  th{font-size:12px;font-weight:600;color:var(--muted);position:sticky;top:0;background:var(--card)}
+  th.sort{cursor:pointer;user-select:none}
+  th.sort:hover{color:var(--ink)}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:var(--hover)}
+  .who{font-weight:600;color:var(--ink)}
+  .dim{color:var(--muted);font-size:12px}
+  .link{background:none;border:0;padding:0;color:var(--ink);font:inherit;font-weight:600;cursor:pointer;text-align:left;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px;align-self:auto}
+  .link:hover{text-decoration-color:var(--coral)}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--grid);color:var(--body);white-space:nowrap}
+  .badge.on{background:var(--ok-soft);color:var(--ink)}
+  .badge.warn{background:var(--coral-soft);color:var(--ink)}
+  .empty{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* charts */
+  .charts{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:760px){.charts{grid-template-columns:1fr 1fr}}
+  .chart .t{font-size:13px;font-weight:600;color:var(--ink)}
+  .chart .s{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--body);margin:2px 0 4px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .chart svg{display:block;width:100%;overflow:visible}
+  .chart svg text{font-size:11px;fill:var(--muted);font-variant-numeric:tabular-nums}
+  .tip{position:fixed;z-index:10;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;min-width:140px}
+  .tip b{display:block;margin-bottom:4px;font-size:12px}
+  .tip .r{display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
+  .tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+  details.days{margin-top:12px}
+  details.days summary{cursor:pointer;font-size:13px;color:var(--body)}
+  details.days .tablewrap{margin-top:8px;max-height:360px;overflow:auto}
+
+  /* funnel */
+  .funnel{display:grid;gap:8px}
+  .fstep{display:grid;grid-template-columns:minmax(120px,220px) 1fr 90px;gap:10px;align-items:center;font-size:13px}
+  .fbar{height:14px;background:var(--grid);border-radius:4px;overflow:hidden}
+  .fbar span{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0}
+  .fstep .num{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .fstep .num small{color:var(--muted);margin-left:4px}
+  @media(max-width:520px){.fstep{grid-template-columns:1fr 70px}.fstep .fbar{grid-column:1/-1;grid-row:2}}
+
+  /* timeline */
+  .day{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:14px 4px 6px}
+  .ev{display:grid;grid-template-columns:48px 1fr;gap:10px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:6px;font-size:13px}
+  .ev .tm{color:var(--muted);font-variant-numeric:tabular-nums;padding-top:1px}
+  .ev .l1{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+  .ev .amt{font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .ev .l2{color:var(--body);margin-top:2px;overflow-wrap:anywhere}
+  .ev .note{color:var(--ink);font-style:italic}
 </style>
 </head>
 <body>
 <main>
   <h1>DuoSplit — số liệu</h1>
-  <p class="sub">Chỉ số đếm và mốc thời gian từ <code>GET /v1/internal/stats</code>. Không tên, không email, không id.</p>
+  <p class="sub">Số đếm từ <code>/v1/internal/stats</code>; người dùng, space và chuỗi sự kiện từ <code>/v1/internal/stats/detail</code>. Có email và ghi chú — dữ liệu nội bộ, đừng chia sẻ màn hình này.</p>
 
   <form id="f" autocomplete="off">
     <div>
@@ -70,20 +155,88 @@
     </div>
     <button id="go" type="submit">Đọc</button>
     <div class="row">
-      <label style="margin:0;display:flex;gap:6px;align-items:center;color:var(--body);font-size:13px">
-        <input id="remember" type="checkbox" style="width:auto"> nhớ secret trên máy này
+      <label>Khoảng
+        <select id="days">
+          <option value="7">7 ngày</option>
+          <option value="30">30 ngày</option>
+          <option value="90">90 ngày</option>
+        </select>
       </label>
-      <label style="margin:0;display:flex;gap:6px;align-items:center;color:var(--body);font-size:13px">
-        <input id="auto" type="checkbox" style="width:auto"> tự làm mới mỗi 60 giây
-      </label>
+      <label><input id="remember" type="checkbox"> nhớ secret trên máy này</label>
+      <label><input id="auto" type="checkbox"> tự làm mới mỗi 60 giây</label>
       <a href="#" id="forget" style="color:var(--muted)">quên secret</a>
     </div>
   </form>
 
   <div id="msg" class="msg"></div>
-  <div id="out"></div>
+
+  <nav class="tabs" id="tabs" role="tablist" hidden>
+    <button type="button" role="tab" data-tab="overview">Tổng quan</button>
+    <button type="button" role="tab" data-tab="users">Người dùng <span class="n" id="n-users"></span></button>
+    <button type="button" role="tab" data-tab="spaces">Space <span class="n" id="n-spaces"></span></button>
+    <button type="button" role="tab" data-tab="events">Chuỗi sự kiện <span class="n" id="n-events"></span></button>
+  </nav>
+
+  <section id="tab-overview" hidden>
+    <div id="counts"></div>
+    <div id="detail-overview"></div>
+  </section>
+
+  <section id="tab-users" hidden>
+    <div class="toolbar">
+      <input id="u-q" type="search" placeholder="Tìm email hoặc tên…" aria-label="Tìm người dùng">
+      <select id="u-f" aria-label="Lọc người dùng">
+        <option value="all">Tất cả</option>
+        <option value="no_space">Chưa có space chung</option>
+        <option value="pending">Có space, chưa ghép đôi</option>
+        <option value="paired_silent">Đã ghép đôi, chưa tự ghi khoản chung</option>
+        <option value="writer">Có ghi khoản chi trong khoảng</option>
+        <option value="quiet">Im lặng hơn 7 ngày</option>
+        <option value="premium">Premium</option>
+      </select>
+      <span class="count" id="u-count"></span>
+    </div>
+    <div class="tablewrap"><table id="u-table"></table></div>
+  </section>
+
+  <section id="tab-spaces" hidden>
+    <div class="toolbar">
+      <input id="s-q" type="search" placeholder="Tìm tên space hoặc email…" aria-label="Tìm space">
+      <select id="s-f" aria-label="Lọc space">
+        <option value="all">Tất cả</option>
+        <option value="paired">Đã ghép đôi</option>
+        <option value="pending">Đang chờ</option>
+        <option value="archived">Đã đóng</option>
+        <option value="both">Cả hai cùng tự ghi</option>
+        <option value="one">Chỉ một người ghi</option>
+        <option value="none">Ghép rồi, chưa ai ghi</option>
+      </select>
+      <span class="count" id="s-count"></span>
+    </div>
+    <div class="tablewrap"><table id="s-table"></table></div>
+  </section>
+
+  <section id="tab-events" hidden>
+    <div class="toolbar">
+      <input id="e-q" type="search" placeholder="Tìm email, space, ghi chú, danh mục…" aria-label="Tìm sự kiện">
+      <select id="e-f" aria-label="Loại sự kiện">
+        <option value="all">Mọi loại</option>
+        <option value="expense">Khoản chi</option>
+        <option value="settlement">Thanh toán</option>
+        <option value="income">Thu nhập</option>
+        <option value="recurring">Chi định kỳ</option>
+        <option value="lifecycle">Đăng ký &amp; space</option>
+        <option value="other">Khác (thoả thuận, quỹ…)</option>
+      </select>
+      <span id="e-chips"></span>
+      <span class="count" id="e-count"></span>
+    </div>
+    <div id="e-list"></div>
+  </section>
+
   <p class="foot" id="foot"></p>
 </main>
+<div class="tip" id="tip" role="tooltip"></div>
 
 <script>
 (function(){
@@ -95,9 +248,18 @@
     del: function(k){ try { localStorage.removeItem(k); } catch(e){} }
   };
 
+  var state = {
+    stats: null, detail: null, detailError: null,
+    tab: store.get("stats.tab") || "overview",
+    uSort: { key: "created_at", dir: -1 },
+    sSort: { key: "created_at", dir: -1 },
+    evUser: null, evSpace: null
+  };
+
   $("base").value = store.get("stats.base") || DEFAULT_BASE;
   if (store.get("stats.secret")) { $("secret").value = store.get("stats.secret"); $("remember").checked = true; }
   $("auto").checked = store.get("stats.auto") === "1";
+  $("days").value = store.get("stats.days") || "30";
 
   var timer = null;
   function schedule(){
@@ -105,37 +267,458 @@
     if ($("auto").checked) timer = setInterval(load, 60000);
   }
   $("auto").addEventListener("change", function(){ store.set("stats.auto", $("auto").checked ? "1" : "0"); schedule(); });
+  $("days").addEventListener("change", function(){ store.set("stats.days", $("days").value); if ($("secret").value.trim()) load(); });
   $("forget").addEventListener("click", function(e){ e.preventDefault(); store.del("stats.secret"); $("secret").value=""; $("remember").checked=false; say("Đã quên secret trên máy này.", "ok"); });
   $("f").addEventListener("submit", function(e){ e.preventDefault(); load(); });
 
+  // ── helpers ──────────────────────────────────────────────────────────
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
   function say(text, kind){ var m=$("msg"); m.className = "msg " + (kind||""); m.textContent = text; }
   function fmtInt(n){ return (typeof n === "number") ? n.toLocaleString("vi-VN") : "—"; }
-  function fmtTime(iso){
-    if (!iso) return "chưa có";
-    var d = new Date(iso); if (isNaN(d)) return iso;
-    var diff = Math.round((Date.now() - d.getTime())/60000);
-    var rel = diff < 1 ? "vừa xong" : diff < 60 ? diff + " phút trước" : diff < 1440 ? Math.round(diff/60) + " giờ trước" : Math.round(diff/1440) + " ngày trước";
-    return d.toLocaleString("vi-VN") + " · " + rel;
+  function ago(iso){
+    if (!iso) return "";
+    var diff = Math.round((Date.now() - new Date(iso).getTime())/60000);
+    if (diff < 1) return "vừa xong";
+    if (diff < 60) return diff + " phút trước";
+    if (diff < 1440) return Math.round(diff/60) + " giờ trước";
+    return Math.round(diff/1440) + " ngày trước";
   }
+  function dt(iso){
+    if (!iso) return "—";
+    var d = new Date(iso); if (isNaN(d)) return esc(iso);
+    return d.toLocaleString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+  }
+  function dOnly(iso){
+    if (!iso) return "—";
+    var d = new Date(iso); if (isNaN(d)) return esc(iso);
+    return d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
+  }
+  function fmtTime(iso){ return iso ? dt(iso) + " · " + ago(iso) : "chưa có"; }
+  function money(amount, cur){
+    if (amount == null || amount === "") return "";
+    var n = Number(amount);
+    var s = isNaN(n) ? String(amount) : n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    return s + (cur ? " " + cur : "");
+  }
+  function days(iso){ return iso ? (Date.now() - new Date(iso).getTime()) / 86400000 : Infinity; }
   function card(k, v, hero, note){
     return '<div class="card' + (hero ? ' hero' : '') + '"><div class="k">' + k + '</div><div class="v">' + fmtInt(v) + '</div>' + (note ? '<div class="note">' + note + '</div>' : '') + '</div>';
   }
   function section(title, cards){ return '<h2>' + title + '</h2><div class="grid">' + cards.join("") + '</div>'; }
+  function who(email, name){
+    if (!email && !name) return '<span class="dim">—</span>';
+    return '<div class="who">' + esc(email || "(không email)") + '</div>' + (name ? '<div class="dim">' + esc(name) + '</div>' : '');
+  }
+  function sortRows(rows, sort){
+    var k = sort.key, dir = sort.dir;
+    return rows.slice().sort(function(a, b){
+      var x = a[k], y = b[k];
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * dir;
+    });
+  }
+  function th(label, key, sort, cls){
+    var mark = sort && sort.key === key ? (sort.dir < 0 ? " ↓" : " ↑") : "";
+    return '<th class="' + (key ? "sort " : "") + (cls || "") + '"' + (key ? ' data-sort="' + key + '"' : '') + '>' + label + mark + '</th>';
+  }
 
-  function render(d){
-    var u=d.users||{}, s=d.spaces||{}, e=d.engagement||{}, a=d.activity_7d||{}, c=d.checkins||{}, r=d.recurring||{};
+  // ── tabs ─────────────────────────────────────────────────────────────
+  function showTab(name){
+    state.tab = name; store.set("stats.tab", name);
+    var btns = $("tabs").querySelectorAll("button");
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-selected", btns[i].getAttribute("data-tab") === name ? "true" : "false");
+    ["overview","users","spaces","events"].forEach(function(t){ $("tab-" + t).hidden = (t !== name); });
+    if (name === "overview") drawCharts();
+  }
+  $("tabs").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-tab]"); if (b) showTab(b.getAttribute("data-tab"));
+  });
+
+  // ── overview: counts ─────────────────────────────────────────────────
+  function renderCounts(d){
+    var u=d.users||{}, s=d.spaces||{}, e=d.engagement||{}, a=d.activity_7d||{}, r=d.recurring||{};
     var html = "";
     html += section("Chỉ số dẫn dắt", [
       card("Space mà CẢ HAI đều tự ghi khoản chi", e.spaces_both_wrote, true,
            "Người thứ hai có tự làm gì không — Vision §12. " + fmtInt(e.spaces_one_wrote) + " space mới chỉ một người ghi.")
     ]);
     html += section("Người dùng", [card("tổng", u.total), card("7 ngày", u.created_7d), card("hôm nay (UTC)", u.created_today)]);
-    html += section("Space", [card("tổng", s.total), card("đã ghép đôi", s.paired), card("đang chờ", s.pending), card("đã đóng", s.archived)]);
-    html += section("Hoạt động 7 ngày", [card("khoản chi", a.expenses), card("thanh toán", a.settlements)]);
-    html += section("Check-in", [card("đã tạo", c.created), card("hoàn tất", c.completed), card("vẫn ổn", c.outcome_still_works), card("nên xem lại", c.outcome_review)]);
+    html += section("Space chung", [card("tổng", s.total), card("đã ghép đôi", s.paired), card("đang chờ", s.pending), card("đã đóng", s.archived), card("sổ riêng", s.personal)]);
+    html += section("Hoạt động 7 ngày", [card("khoản chi chung", a.expenses), card("khoản chi sổ riêng", a.personal_expenses), card("thanh toán", a.settlements)]);
     html += section("Định kỳ", [card("rule đang chạy", r.rules_active), card("cần xử lý", r.rules_needs_attention), card("khoản tự tạo", r.expenses_auto_created)]);
-    $("out").innerHTML = html;
-    $("foot").textContent = "Hoạt động gần nhất: " + fmtTime(d.last_activity_at) + " · Đọc lúc: " + fmtTime(d.generated_at);
+    $("counts").innerHTML = html;
+  }
+
+  // ── overview: funnel + charts ────────────────────────────────────────
+  function renderDetailOverview(){
+    var host = $("detail-overview");
+    if (!state.detail) {
+      host.innerHTML = state.detailError ? '<h2>Chi tiết</h2><div class="card dim">' + esc(state.detailError) + '</div>' : "";
+      return;
+    }
+    var d = state.detail, users = d.users || [];
+    var steps = [
+      ["Có tài khoản", users.length],
+      ["Có space chung đang mở", users.filter(function(u){ return u.couple_spaces > 0; }).length],
+      ["Đã ghép đôi", users.filter(function(u){ return u.paired_spaces > 0; }).length],
+      ["Tự ghi ≥ 1 khoản chung", users.filter(function(u){ return u.couple_expenses > 0; }).length],
+      ["Ghi khoản chi trong " + d.window_days + " ngày", users.filter(function(u){ return u.expenses_window > 0; }).length]
+    ];
+    var top = Math.max(1, steps[0][1]);
+    var f = '<div class="funnel">' + steps.map(function(s){
+      var pct = Math.round(s[1] / top * 100);
+      return '<div class="fstep"><span>' + s[0] + '</span><div class="fbar"><span style="width:' + Math.max(pct ? 1 : 0, pct) + '%"></span></div>' +
+             '<span class="num">' + fmtInt(s[1]) + '<small>' + pct + '%</small></span></div>';
+    }).join("") + '</div>';
+    var capped = users.length >= 2000 ? '<div class="dim" style="margin-top:8px">Tính trên 2.000 tài khoản mới nhất.</div>' : '';
+
+    var rows = (d.daily || []).slice().reverse().map(function(p){
+      return '<tr><td>' + esc(p.date) + '</td><td class="num">' + p.signups + '</td><td class="num">' + p.active_users + '</td><td class="num">' +
+             p.couple_expenses + '</td><td class="num">' + p.personal_expenses + '</td><td class="num">' + p.settlements + '</td></tr>';
+    }).join("");
+
+    host.innerHTML =
+      '<h2>Phễu người dùng</h2><div class="card">' + f + capped + '</div>' +
+      '<h2>Xu hướng ' + d.window_days + ' ngày (ngày theo UTC)</h2>' +
+      '<div class="charts">' +
+        '<div class="card chart" id="c-exp"></div>' +
+        '<div class="card chart" id="c-active"></div>' +
+        '<div class="card chart" id="c-signup"></div>' +
+        '<div class="card chart" id="c-settle"></div>' +
+      '</div>' +
+      '<details class="days"><summary>Xem dạng bảng</summary><div class="tablewrap"><table>' +
+        '<thead><tr><th>Ngày</th><th class="num">Đăng ký</th><th class="num">Hoạt động</th><th class="num">Chi chung</th><th class="num">Chi riêng</th><th class="num">Thanh toán</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div></details>';
+    drawCharts();
+  }
+
+  var CHARTS = [
+    { id: "c-exp", title: "Khoản chi mỗi ngày", sub: "chung và sổ riêng, gồm khoản tự tạo",
+      series: [{ key: "couple_expenses", label: "Chung", color: "var(--s1)" }, { key: "personal_expenses", label: "Sổ riêng", color: "var(--s2)" }] },
+    { id: "c-active", title: "Người dùng hoạt động", sub: "ước lượng: có ghi gì đó hoặc mở app (refresh token)", peak: true,
+      series: [{ key: "active_users", label: "Người", color: "var(--s1)" }] },
+    { id: "c-signup", title: "Đăng ký mới", sub: "tài khoản còn tồn tại",
+      series: [{ key: "signups", label: "Đăng ký", color: "var(--s1)" }] },
+    { id: "c-settle", title: "Thanh toán", sub: "lần ghi nhận thanh toán giữa hai người",
+      series: [{ key: "settlements", label: "Thanh toán", color: "var(--s1)" }] }
+  ];
+
+  function niceMax(v){
+    if (v <= 4) return Math.max(1, v);
+    var p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+  }
+  function barPath(x, y, w, h, r){
+    r = Math.min(r, w / 2, h);
+    if (r <= 0) return "M" + x + "," + (y + h) + "V" + y + "H" + (x + w) + "V" + (y + h) + "Z";
+    return "M" + x + "," + (y + h) + "V" + (y + r) + "Q" + x + "," + y + " " + (x + r) + "," + y +
+           "H" + (x + w - r) + "Q" + (x + w) + "," + y + " " + (x + w) + "," + (y + r) + "V" + (y + h) + "Z";
+  }
+  function shortDate(s){ var p = String(s).split("-"); return p.length === 3 ? p[2] + "/" + p[1] : s; }
+
+  function drawCharts(){
+    if (!state.detail || state.tab !== "overview") return;
+    CHARTS.forEach(function(c){ var host = $(c.id); if (host) drawChart(host, c, state.detail.daily || []); });
+  }
+
+  function drawChart(host, cfg, pts){
+    var legend = cfg.series.length > 1 ? '<div class="legend">' + cfg.series.map(function(s){
+      return '<span><i style="background:' + s.color + '"></i>' + s.label + '</span>';
+    }).join("") + '</div>' : '';
+    var perDay = pts.map(function(p){ return cfg.series.reduce(function(a, s){ return a + (p[s.key] || 0); }, 0); });
+    // distinct people per day do not add up across days: show the peak instead
+    var agg = cfg.peak ? "cao nhất " + fmtInt(Math.max.apply(null, perDay.concat([0]))) + "/ngày"
+                       : "tổng " + fmtInt(perDay.reduce(function(a, b){ return a + b; }, 0));
+    host.innerHTML = '<div class="t">' + cfg.title + ' <span class="dim">· ' + agg + '</span></div><div class="s">' + cfg.sub + '</div>' + legend + '<div class="plot"></div>';
+    var plot = host.querySelector(".plot");
+    var W = Math.max(240, plot.clientWidth), H = 140, L = 30, R = 4, T = 8, B = 20;
+    var n = pts.length; if (!n) return;
+    var pw = W - L - R, ph = H - T - B, step = pw / n, gap = step >= 6 ? 2 : 1, bw = Math.max(1, step - gap);
+    var max = 0;
+    pts.forEach(function(p){ var t = 0; cfg.series.forEach(function(s){ t += p[s.key] || 0; }); if (t > max) max = t; });
+    var top = niceMax(max), ys = function(v){ return v / top * ph; };
+    var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(cfg.title) + '">';
+    // recessive grid: top and middle, then the baseline
+    [top, top / 2].forEach(function(v){
+      if (v !== Math.round(v) && v !== top) return;
+      var y = T + ph - ys(v);
+      svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" stroke="var(--grid)" stroke-width="1"/>';
+      svg += '<text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + fmtInt(v) + '</text>';
+    });
+    svg += '<text x="' + (L - 6) + '" y="' + (T + ph + 4) + '" text-anchor="end">0</text>';
+    svg += '<rect class="hov" x="0" y="' + T + '" width="' + step + '" height="' + ph + '" fill="var(--hover)" visibility="hidden"/>';
+    pts.forEach(function(p, i){
+      var x = L + i * step + gap / 2, base = T + ph, segs = [];
+      cfg.series.forEach(function(s){ var v = p[s.key] || 0; if (v > 0) segs.push({ v: v, c: s.color }); });
+      segs.forEach(function(sg, j){
+        var full = ys(sg.v), y = base - full;
+        // 2px surface gap under every segment stacked on another one
+        var h = j > 0 ? Math.max(1, full - 2) : full;
+        var last = j === segs.length - 1;
+        svg += last ? '<path d="' + barPath(x, y, bw, h, 4) + '" fill="' + sg.c + '"/>'
+                    : '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" fill="' + sg.c + '"/>';
+        base = y;
+      });
+    });
+    svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '" stroke="var(--axis)" stroke-width="1"/>';
+    [0, Math.floor((n - 1) / 2), n - 1].filter(function(v, i, a){ return a.indexOf(v) === i; }).forEach(function(i, k, arr){
+      var x = L + i * step + step / 2, anchor = k === 0 && arr.length > 1 ? "start" : k === arr.length - 1 && arr.length > 1 ? "end" : "middle";
+      if (anchor === "start") x = L + i * step; if (anchor === "end") x = L + (i + 1) * step;
+      svg += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="' + anchor + '">' + esc(shortDate(pts[i].date)) + '</text>';
+    });
+    svg += '<rect class="hit" x="' + L + '" y="0" width="' + pw + '" height="' + (T + ph) + '" fill="transparent"/></svg>';
+    plot.innerHTML = svg;
+
+    var el = plot.querySelector("svg"), hov = el.querySelector(".hov"), tip = $("tip");
+    function move(ev){
+      var pt = ev.touches ? ev.touches[0] : ev, rect = el.getBoundingClientRect();
+      var i = Math.floor((pt.clientX - rect.left - L) / step);
+      if (i < 0 || i >= n) { leave(); return; }
+      var p = pts[i], sum = 0;
+      hov.setAttribute("x", L + i * step); hov.setAttribute("visibility", "visible");
+      var rows = cfg.series.map(function(s){ var v = p[s.key] || 0; sum += v;
+        return '<div class="r"><span><i style="background:' + s.color + '"></i>' + s.label + '</span><span>' + fmtInt(v) + '</span></div>'; }).join("");
+      if (cfg.series.length > 1) rows += '<div class="r" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span>Tổng</span><span>' + fmtInt(sum) + '</span></div>';
+      tip.innerHTML = '<b>' + esc(p.date) + '</b>' + rows;
+      tip.style.display = "block";
+      var tx = pt.clientX + 14, ty = pt.clientY + 14, tw = tip.offsetWidth, tht = tip.offsetHeight;
+      if (tx + tw > window.innerWidth - 8) tx = pt.clientX - tw - 14;
+      if (ty + tht > window.innerHeight - 8) ty = pt.clientY - tht - 14;
+      tip.style.left = Math.max(8, tx) + "px"; tip.style.top = Math.max(8, ty) + "px";
+    }
+    function leave(){ hov.setAttribute("visibility", "hidden"); tip.style.display = "none"; }
+    el.addEventListener("mousemove", move);
+    el.addEventListener("mouseleave", leave);
+    el.addEventListener("touchstart", move, { passive: true });
+    el.addEventListener("touchmove", move, { passive: true });
+    el.addEventListener("touchend", function(){ setTimeout(leave, 1500); });
+  }
+  var rz = null;
+  window.addEventListener("resize", function(){ clearTimeout(rz); rz = setTimeout(drawCharts, 150); });
+
+  // ── users ────────────────────────────────────────────────────────────
+  var U_FILTERS = {
+    all: function(){ return true; },
+    no_space: function(u){ return u.couple_spaces === 0; },
+    pending: function(u){ return u.couple_spaces > 0 && u.paired_spaces === 0; },
+    paired_silent: function(u){ return u.paired_spaces > 0 && u.couple_expenses === 0; },
+    writer: function(u){ return u.expenses_window > 0; },
+    quiet: function(u){ return days(u.last_seen_at) > 7; },
+    premium: function(u){ return u.tier === "premium"; }
+  };
+  function renderUsers(){
+    if (!state.detail) return;
+    var all = state.detail.users || [], q = $("u-q").value.trim().toLowerCase(), f = U_FILTERS[$("u-f").value] || U_FILTERS.all;
+    var rows = all.filter(function(u){
+      return f(u) && (!q || (u.email || "").toLowerCase().indexOf(q) >= 0 || (u.display_name || "").toLowerCase().indexOf(q) >= 0);
+    });
+    rows = sortRows(rows, state.uSort);
+    $("u-count").textContent = fmtInt(rows.length) + " / " + fmtInt(all.length) + " người";
+    var s = state.uSort, w = state.detail.window_days;
+    var head = '<thead><tr>' + th("Email · tên") + th("Space (ghép/chung)", "paired_spaces", s, "num") +
+      th("Khoản chung", "couple_expenses", s, "num") + th("Sổ riêng", "personal_expenses", s, "num") +
+      th(w + " ngày", "expenses_window", s, "num") + th("Khoản gần nhất", "last_expense_at", s) +
+      th("Lần thấy gần nhất", "last_seen_at", s) + th("Đăng ký", "created_at", s) +
+      th("Đăng nhập") + th("Thiết bị") + th("Gói") + '</tr></thead>';
+    var body = rows.map(function(u){
+      return '<tr>' +
+        '<td><button type="button" class="link" data-user="' + esc(u.id) + '">' + esc(u.email || "(không email)") + '</button><div class="dim">' + esc(u.display_name) + ' · ' + esc(u.locale) + '</div></td>' +
+        '<td class="num">' + u.paired_spaces + ' / ' + u.couple_spaces + '</td>' +
+        '<td class="num">' + fmtInt(u.couple_expenses) + '</td>' +
+        '<td class="num">' + fmtInt(u.personal_expenses) + '</td>' +
+        '<td class="num">' + fmtInt(u.expenses_window) + '</td>' +
+        '<td>' + (u.last_expense_at ? ago(u.last_expense_at) : '<span class="dim">—</span>') + '</td>' +
+        '<td>' + (u.last_seen_at ? dt(u.last_seen_at) + '<div class="dim">' + ago(u.last_seen_at) + '</div>' : '<span class="dim">—</span>') + '</td>' +
+        '<td>' + dt(u.created_at) + '<div class="dim">' + ago(u.created_at) + '</div></td>' +
+        '<td>' + (u.providers.length ? esc(u.providers.join(", ")) : '<span class="dim">—</span>') + '</td>' +
+        '<td>' + (u.platforms.length ? esc(u.platforms.join(", ")) : '<span class="dim">chưa bật push</span>') + '</td>' +
+        '<td>' + (u.tier === "premium" ? '<span class="badge on">premium</span>' : '<span class="badge">free</span>') + '</td>' +
+      '</tr>';
+    }).join("");
+    $("u-table").innerHTML = head + '<tbody>' + (body || '<tr><td colspan="11" class="empty">Không có ai khớp.</td></tr>') + '</tbody>';
+  }
+
+  // ── spaces ───────────────────────────────────────────────────────────
+  function spaceState(s){ return s.status === "archived" ? "archived" : s.member_b_name != null ? "paired" : "pending"; }
+  var S_FILTERS = {
+    all: function(){ return true; },
+    paired: function(s){ return spaceState(s) === "paired"; },
+    pending: function(s){ return spaceState(s) === "pending"; },
+    archived: function(s){ return spaceState(s) === "archived"; },
+    both: function(s){ return s.a_wrote > 0 && s.b_wrote > 0; },
+    one: function(s){ return (s.a_wrote > 0) !== (s.b_wrote > 0); },
+    none: function(s){ return s.member_b_name != null && s.a_wrote === 0 && s.b_wrote === 0; }
+  };
+  var S_LABEL = { paired: '<span class="badge on">đã ghép</span>', pending: '<span class="badge warn">đang chờ</span>', archived: '<span class="badge">đã đóng</span>' };
+  function renderSpaces(){
+    if (!state.detail) return;
+    var all = state.detail.spaces || [], q = $("s-q").value.trim().toLowerCase(), f = S_FILTERS[$("s-f").value] || S_FILTERS.all;
+    var rows = all.filter(function(s){
+      if (!f(s)) return false;
+      if (!q) return true;
+      return [s.name, s.member_a_email, s.member_a_name, s.member_b_email, s.member_b_name].some(function(v){ return (v || "").toLowerCase().indexOf(q) >= 0; });
+    });
+    rows = sortRows(rows, state.sSort);
+    $("s-count").textContent = fmtInt(rows.length) + " / " + fmtInt(all.length) + " space";
+    var s = state.sSort;
+    var head = '<thead><tr>' + th("Space") + th("Trạng thái") + th("Khoản chi", "expenses", s, "num") +
+      th("A ghi / B ghi / tự động", "", null, "num") + th("Thanh toán", "settlements", s, "num") + th("Khoản gần nhất", "last_expense_at", s) +
+      th("Người tạo (A)") + th("Người vào (B)") + th("Tạo", "created_at", s) + th("Ghép", "paired_at", s) + '</tr></thead>';
+    var body = rows.map(function(sp){
+      var st = spaceState(sp);
+      return '<tr>' +
+        '<td><button type="button" class="link" data-space="' + esc(sp.id) + '">' + esc(sp.name) + '</button><div class="dim">' + esc(sp.currency) + '</div></td>' +
+        '<td>' + S_LABEL[st] + (sp.archived_at ? '<div class="dim">' + dOnly(sp.archived_at) + '</div>' : '') + '</td>' +
+        '<td class="num">' + fmtInt(sp.expenses) + '</td>' +
+        '<td class="num">' + sp.a_wrote + ' / ' + sp.b_wrote + ' / ' + sp.auto + '</td>' +
+        '<td class="num">' + fmtInt(sp.settlements) + '</td>' +
+        '<td>' + (sp.last_expense_at ? ago(sp.last_expense_at) : '<span class="dim">—</span>') + '</td>' +
+        '<td>' + who(sp.member_a_email, sp.member_a_name) + '</td>' +
+        '<td>' + (sp.member_b_name != null ? who(sp.member_b_email, sp.member_b_name) : '<span class="dim">chưa có</span>') + '</td>' +
+        '<td>' + dt(sp.created_at) + '</td>' +
+        '<td>' + (sp.paired_at ? dt(sp.paired_at) : '<span class="dim">—</span>') + '</td>' +
+      '</tr>';
+    }).join("");
+    $("s-table").innerHTML = head + '<tbody>' + (body || '<tr><td colspan="10" class="empty">Không có space nào khớp.</td></tr>') + '</tbody>';
+  }
+
+  // sort by header click
+  function bindSort(tableId, key, render){
+    $(tableId).addEventListener("click", function(e){
+      var h = e.target.closest("th[data-sort]"); if (!h) return;
+      var k = h.getAttribute("data-sort"), s = state[key];
+      if (s.key === k) s.dir = -s.dir; else { s.key = k; s.dir = -1; }
+      render();
+    });
+  }
+  bindSort("u-table", "uSort", renderUsers);
+  bindSort("s-table", "sSort", renderSpaces);
+
+  // ── events ───────────────────────────────────────────────────────────
+  var GROUP = {
+    expense: ["expense"],
+    settlement: ["settlement_recorded", "settlement_undone"],
+    income: ["income", "income_rule"],
+    recurring: ["recurring_rule"],
+    lifecycle: ["signup", "space_created", "space_joined", "space_archived"]
+  };
+  var KNOWN = [].concat(GROUP.expense, GROUP.settlement, GROUP.income, GROUP.recurring, GROUP.lifecycle);
+  var ACTION = { created: "ghi mới", updated: "sửa", deleted: "xoá", stopped: "dừng", needs_attention: "cần xử lý", period_skipped: "bỏ qua kỳ" };
+  var TYPE = {
+    expense: "Khoản chi", settlement_recorded: "Thanh toán", settlement_undone: "Hoàn tác thanh toán",
+    income: "Thu nhập", income_rule: "Thu định kỳ", recurring_rule: "Chi định kỳ",
+    agreement_changed: "Thoả thuận", agreement_default_ratio_changed: "Thoả thuận", agreement_category_ratio_changed: "Thoả thuận",
+    agreement_proposal_era_resnapshotted: "Chia lại khoản cũ", ratio_changed: "Tỷ lệ (cũ)",
+    personal_transfer: "Chuyển vào sổ riêng", fund_negative: "Quỹ âm", fund_deleted: "Xoá quỹ",
+    signup: "Đăng ký", space_created: "Tạo space", space_joined: "Vào space", space_archived: "Đóng space"
+  };
+  function evLabel(ev){
+    var t = TYPE[ev.type] || ev.type;
+    if (ev.type === "signup") return t + (ev.action ? " · " + ev.action : "");
+    if (ev.type === "space_archived") return t + (ev.action ? " · " + ev.action : "");
+    return t + (ev.action ? " · " + (ACTION[ev.action] || ev.action) : "");
+  }
+  function evMatches(ev, group, q){
+    if (state.evUser && ev.user_id !== state.evUser) return false;
+    if (state.evSpace && ev.space_id !== state.evSpace) return false;
+    if (group !== "all") {
+      if (group === "other") { if (KNOWN.indexOf(ev.type) >= 0) return false; }
+      else if ((GROUP[group] || []).indexOf(ev.type) < 0) return false;
+    }
+    if (!q) return true;
+    return [ev.email, ev.display_name, ev.space_name, ev.note, ev.category, ev.type].some(function(v){ return (v || "").toLowerCase().indexOf(q) >= 0; });
+  }
+  function lookupUser(id){ var u = (state.detail.users || []).filter(function(x){ return x.id === id; })[0]; return u ? (u.email || u.display_name) : id; }
+  function lookupSpace(id){ var s = (state.detail.spaces || []).filter(function(x){ return x.id === id; })[0]; return s ? s.name : id; }
+
+  function renderEvents(){
+    if (!state.detail) return;
+    var all = state.detail.timeline || [], q = $("e-q").value.trim().toLowerCase(), g = $("e-f").value;
+    var rows = all.filter(function(ev){ return evMatches(ev, g, q); });
+
+    var chips = "";
+    if (state.evUser) chips += '<span class="chip">người: ' + esc(lookupUser(state.evUser)) + '<button type="button" data-clear="user" aria-label="Bỏ lọc người">×</button></span> ';
+    if (state.evSpace) chips += '<span class="chip">space: ' + esc(lookupSpace(state.evSpace)) + '<button type="button" data-clear="space" aria-label="Bỏ lọc space">×</button></span>';
+    $("e-chips").innerHTML = chips;
+    $("e-count").textContent = fmtInt(rows.length) + " / " + fmtInt(all.length) + " sự kiện" + (state.detail.timeline_truncated ? " (mới nhất)" : "");
+
+    if (!rows.length) { $("e-list").innerHTML = '<div class="card empty">Không có sự kiện nào khớp trong ' + state.detail.window_days + ' ngày.</div>'; return; }
+    var html = "", lastDay = "";
+    rows.forEach(function(ev){
+      var d = new Date(ev.at), day = d.toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+      if (day !== lastDay) { html += '<div class="day">' + esc(day) + '</div>'; lastDay = day; }
+      var actor = ev.user_id
+        ? '<button type="button" class="link" data-user="' + esc(ev.user_id) + '">' + esc(ev.email || ev.display_name || "(không email)") + '</button>'
+        : '<span class="dim">' + (ev.type === "expense" || ev.type === "income" ? "tự động (định kỳ)" : ev.type === "space_joined" ? "người vào (không rõ)" : "hệ thống") + '</span>';
+      var space = ev.space_id
+        ? ' trong <button type="button" class="link" data-space="' + esc(ev.space_id) + '">' + esc(ev.space_name) + '</button>' +
+          (ev.space_kind === "personal" ? ' <span class="badge">sổ riêng</span>' : '')
+        : '';
+      var amt = ev.amount != null ? '<span class="amt">' + esc(money(ev.amount, ev.currency)) + '</span>' : '';
+      var cat = ev.category ? '<span class="dim">' + esc(ev.category) + '</span>' : '';
+      var note = ev.note ? ' · <span class="note">“' + esc(ev.note) + '”</span>' : '';
+      var badgeCls = ev.action === "deleted" || ev.type === "settlement_undone" ? "badge warn" : ev.type === "signup" || ev.type === "space_joined" ? "badge on" : "badge";
+      html += '<div class="ev"><div class="tm">' + d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) + '</div><div>' +
+        '<div class="l1"><span class="' + badgeCls + '">' + esc(evLabel(ev)) + '</span>' + amt + cat + '</div>' +
+        '<div class="l2">' + actor + space + note + '</div></div></div>';
+    });
+    if (state.detail.timeline_truncated) html += '<div class="dim" style="padding:8px 4px">Chỉ hiện ' + fmtInt(all.length) + ' sự kiện mới nhất trong khoảng — chọn khoảng ngắn hơn để xem đủ.</div>';
+    $("e-list").innerHTML = html;
+  }
+
+  ["u-q","u-f"].forEach(function(id){ $(id).addEventListener("input", renderUsers); });
+  ["s-q","s-f"].forEach(function(id){ $(id).addEventListener("input", renderSpaces); });
+  ["e-q","e-f"].forEach(function(id){ $(id).addEventListener("input", renderEvents); });
+  $("e-chips").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-clear]"); if (!b) return;
+    if (b.getAttribute("data-clear") === "user") state.evUser = null; else state.evSpace = null;
+    renderEvents();
+  });
+  // a click on a person or a space anywhere opens their chain of events
+  document.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-user],button[data-space]"); if (!b) return;
+    if (b.hasAttribute("data-user")) { state.evUser = b.getAttribute("data-user"); state.evSpace = null; }
+    else { state.evSpace = b.getAttribute("data-space"); state.evUser = null; }
+    $("e-f").value = "all"; $("e-q").value = "";
+    showTab("events"); renderEvents(); window.scrollTo({ top: $("tabs").offsetTop - 8, behavior: "smooth" });
+  });
+
+  // ── render & load ────────────────────────────────────────────────────
+  function render(){
+    $("tabs").hidden = false;
+    renderCounts(state.stats);
+    var d = state.detail;
+    $("n-users").textContent = d ? fmtInt((d.users || []).length) : "";
+    $("n-spaces").textContent = d ? fmtInt((d.spaces || []).length) : "";
+    $("n-events").textContent = d ? fmtInt((d.timeline || []).length) : "";
+    ["users","spaces","events"].forEach(function(t){
+      var b = $("tabs").querySelector('[data-tab="' + t + '"]'); b.hidden = !d;
+    });
+    if (!d && state.tab !== "overview") state.tab = "overview";
+    renderDetailOverview(); renderUsers(); renderSpaces(); renderEvents();
+    showTab(state.tab);
+    $("foot").textContent = "Hoạt động gần nhất: " + fmtTime(state.stats.last_activity_at) + " · Đọc lúc: " + fmtTime(state.stats.generated_at);
+  }
+
+  function statusError(res){
+    if (res.status === 401) return "401 — secret sai (hoặc thừa/thiếu ký tự). Đối chiếu với STATS_API_SECRET trên Render.";
+    if (res.status === 404) return "404 — route chưa mở: STATS_API_SECRET chưa được set trên Render, hoặc service không boot được (kiểm STATS_CORS_ORIGIN có đúng dạng https://host không).";
+    if (res.status === 403) return "403 — origin của trang này không khớp STATS_CORS_ORIGIN.";
+    return "HTTP " + res.status;
+  }
+  function getJSON(url, secret, signal){
+    return fetch(url, { headers: { "Authorization": "Bearer " + secret }, signal: signal, cache: "no-store" })
+      .then(function(res){
+        if (!res.ok) { var e = new Error(statusError(res)); e.status = res.status; throw e; }
+        return res.json();
+      })
+      .then(function(j){ return j.data || j; });
   }
 
   function load(){
@@ -147,16 +730,29 @@
     $("go").disabled = true; say("Đang đọc… (instance Render đang ngủ có thể mất 30–50 giây)", "ok");
 
     var ctl = new AbortController(); var t = setTimeout(function(){ ctl.abort(); }, 70000);
-    fetch(base + "/v1/internal/stats", { headers: { "Authorization": "Bearer " + secret }, signal: ctl.signal, cache: "no-store" })
-      .then(function(res){
+    var detailURL = base + "/v1/internal/stats/detail?days=" + encodeURIComponent($("days").value) + "&limit=1000";
+    Promise.all([
+      getJSON(base + "/v1/internal/stats", secret, ctl.signal),
+      // the counts still render when the detail route is missing (older backend)
+      getJSON(detailURL, secret, ctl.signal).then(function(d){ return { ok: d }; }, function(err){ return { err: err }; })
+    ])
+      .then(function(r){
         clearTimeout(t);
-        if (res.status === 401) throw new Error("401 — secret sai (hoặc thừa/thiếu ký tự). Đối chiếu với STATS_API_SECRET trên Render.");
-        if (res.status === 404) throw new Error("404 — route chưa mở: STATS_API_SECRET chưa được set trên Render, hoặc service không boot được (kiểm STATS_CORS_ORIGIN có đúng dạng https://host không).");
-        if (res.status === 403) throw new Error("403 — origin của trang này không khớp STATS_CORS_ORIGIN.");
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return res.json();
+        state.stats = r[0];
+        if (r[1].ok) { state.detail = r[1].ok; state.detailError = null; }
+        else {
+          state.detail = null;
+          var e = r[1].err;
+          // /stats just passed CORS from this same origin, so a network-level
+          // failure here means the preflight hit a route the server does not
+          // have (404 without CORS headers): the backend is older than the page.
+          var missing = e && (e.status === 404 || /Failed to fetch|NetworkError|Load failed/.test(String(e.message)));
+          state.detailError = missing
+            ? "Server chưa có /v1/internal/stats/detail — bản backend trên Render cũ hơn trang này. Deploy commit mới nhất (Render → Manual Deploy → Deploy latest commit nếu auto-deploy đang tắt), đợi build xong rồi bấm Đọc lại."
+            : "Không đọc được phần chi tiết: " + String((e && e.message) || e);
+        }
+        render(); say("", "");
       })
-      .then(function(j){ render(j.data || j); say("", ""); })
       .catch(function(err){
         clearTimeout(t);
         var m = err && err.name === "AbortError"

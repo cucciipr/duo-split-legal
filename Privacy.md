@@ -1,6 +1,6 @@
 # DuoSplit Privacy Policy
 
-**Last updated:** 6 September 2026
+**Last updated:** 2 October 2026
 
 This policy explains what DuoSplit collects, why, who can see it, and how to remove it. We have tried to write it in plain language rather than legal boilerplate. If anything here is unclear, please ask.
 
@@ -10,7 +10,9 @@ This policy explains what DuoSplit collects, why, who can see it, and how to rem
 
 DuoSplit helps two people keep track of the money they share — who covered what, how they have agreed to split it, and what is still open between them.
 
-**DuoSplit never moves money.** It does not connect to your bank, hold funds, process payments, or transfer anything between you and your partner. It is a shared record of what the two of you have agreed, and nothing more.
+**DuoSplit never moves money.** It does not connect to your bank, hold funds, process payments, or transfer anything between you and your partner. It is a shared record of what the two of you have agreed, plus, if you choose to keep one, a private record of your own spending that your partner never sees. Nothing more.
+
+If you choose, DuoSplit can save you some typing when you pay your partner back: it can open PayPal or Venmo, or show a bank-transfer QR code (VietQR), with your partner's details and the amount already filled in, and it can open the banking app you choose with your partner's account number copied for you to paste. The payment itself happens in PayPal, in Venmo or in your banking app — never in DuoSplit.
 
 DuoSplit is for people aged 18 and over.
 
@@ -31,6 +33,28 @@ If you sign in with Apple and choose to hide your email address, we receive the 
 - Your split agreement: your default split and any per-category arrangements
 - A record of changes to that agreement, including who made each change and when
 
+### What you record only for yourself
+
+If you choose to keep a private record of your own spending ("Just me"), we store what you add to it:
+
+- expenses: amount, date, category, an optional note, and the currency you paid in
+- the categories you create for it, and their order
+- any repeating expenses you set up in it
+
+Your partner cannot see it, and is not told it exists. It is not part of any shared space.
+
+### How you get paid, if you add it
+
+So your partner can pay you back in one tap, you can add in Settings:
+
+- your **PayPal.Me name** (the part after `paypal.me/`), and/or
+- your **Venmo username** (your @name on Venmo), and/or
+- for **VietQR** bank transfers: your bank and your account number.
+
+If your partner has not added a way to get paid, you can remind them once from the app. We keep a note that you did, so the reminder is only ever sent once.
+
+This is optional, and you can change or remove it at any time. It is an address for receiving money, not a password or login — nobody can take money out of your account with it.
+
 ### A device token, if you turn on notifications
 
 See section 4b. If you decline notifications, no device token is stored.
@@ -41,8 +65,9 @@ We want to be specific, because "we value your privacy" means nothing on its own
 
 - connect to any bank, card, or payment account
 - see any of your real transactions
+- know whether a payment you make in PayPal, Venmo or your banking app went through — a settlement is recorded only when you tell DuoSplit you have paid
 - collect your location
-- read your contacts, photos, calendar, or messages
+- read your contacts, photos, calendar, or messages. If you tap "Download QR code" when paying your partner, the app adds that one QR image to your photo library — it asks only for permission to add photos, never to read them
 - use advertising identifiers or run any advertising
 - sell or rent your information to anyone
 - use your data to train machine-learning models
@@ -87,10 +112,11 @@ When you join a shared space with someone, that person can see:
 - the running balance between you
 - settlements either of you record
 - the split agreement, and a record of changes to it — including which of you made each change
+- **how you get paid**, if you have added it: your PayPal.Me name, your Venmo username, or the bank and account number for VietQR — only while you share an active space
 
 **Anything you record in a shared space is visible to the other person.** If you do not want your partner to see something, do not record it in DuoSplit.
 
-Your partner cannot see your email address, your other spaces, or anything outside the space you share.
+Your partner cannot see your email address, your other spaces, your private record ("Just me"), or anything outside the space you share. They are not told that a private record exists.
 
 ## 6. Who else we share with
 
@@ -100,6 +126,8 @@ We share the minimum necessary with:
 - **Apple (APNs)** and **Google (Firebase Cloud Messaging)** — to deliver notifications to your device, if you have turned them on. See section 4b.
 - **Sentry** — crash reports, filtered as described in section 4.
 - **Render** — our servers and database, located in the United States.
+
+**When you pay with PayPal, Venmo or VietQR.** If you choose to pay your partner with PayPal or Venmo, your phone opens PayPal or the Venmo app with your partner's PayPal.Me name or Venmo username, the amount and, for Venmo, a short note; from that point that service's own terms and privacy policy apply. A VietQR code is made on your phone and is read only by the banking app you scan it with. If you ask DuoSplit to open your banking app, it only opens that app — it passes nothing to it; which app you chose is remembered on your phone and forgotten when you sign out. DuoSplit itself sends nothing to PayPal, to Venmo, to any bank, or to NAPAS.
 
 We may also disclose information if we are legally required to do so, or where necessary to protect someone's safety or to investigate abuse of the service.
 
@@ -123,6 +151,8 @@ Crash reports are retained by Sentry according to their retention period and are
 
 Your device token, if you have one, is kept until you delete your account — see section 4b.
 
+How you get paid (your PayPal.Me name, your Venmo username, your bank account for VietQR) is kept until you remove it in Settings or delete your account.
+
 ## 9. Deleting your account
 
 You can delete your account from inside the app: open **Settings**, scroll to the bottom, and choose to end your space or delete your account. Because deletion cannot be undone, we ask you to sign in again first to confirm it is you.
@@ -134,8 +164,10 @@ When you delete your account:
 - your name, email address, and profile picture link are permanently removed
 - your session and sign-in tokens are destroyed
 - your device token, if you had notifications on, is deleted
+- how you get paid — your PayPal.Me name, your Venmo username and any bank account you added for VietQR — is deleted
 - if you signed in with Apple, we ask Apple to revoke the sign-in connection between your Apple ID and DuoSplit
 - if you were not sharing a space with anyone, everything in that space is deleted
+- your private record ("Just me"), if you kept one, is deleted entirely: nothing of it stays behind
 
 **If you shared a space with a partner, the shared financial record stays with them, with your identity removed.** Your entries appear as belonging to a "Former partner" rather than to you by name.
 
@@ -148,6 +180,8 @@ If you would prefer the shared record to be deleted as well, both of you can dis
 If you disconnect from a partner, the shared space becomes permanently read-only for both of you. Neither person can add to it or delete it. This protects both people's record of what happened.
 
 If you were not sharing with anyone, disconnecting deletes the space and everything in it.
+
+Ending a shared space does not touch your private record ("Just me"); it stays yours, as it was.
 
 ## 11. Your rights
 
@@ -179,6 +213,7 @@ Where you live gives you rights over this, and you can withdraw permission at an
 - Sign-in tokens are stored on your device in your operating system's secure storage
 - Long-lived tokens are stored on our servers as irreversible hashes, not as readable values
 - Access to your space's data requires proof that you are a member of it
+- A bank account number you add for VietQR can be read only by your partner in an active space. It is never written to our logs and never included in crash reports
 
 No system is perfectly secure, and we will not pretend otherwise. If a breach affects your information, we will tell you.
 
